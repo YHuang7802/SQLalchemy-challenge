@@ -109,45 +109,51 @@ def tobs():
 
 # * Return a JSON list of the minimum temperature, the average temperature, and the maximum temperature for a given start or start-end range.
 # * When given the start only, calculate `TMIN`, `TAVG`, and `TMAX` for all dates greater than or equal to the start date.
-@app.route("/api/v1.0/start<start>")
-def start(date):
-    date= dt.datetime.strptime('%Y-%m-%d')
-    
-    session = Session(engine)
-
-    results = session.query(func.min(measurement.tobs),func.max(measurement.tobs),func.avg(measurement.tobs)).filter(func.strftime("%Y-%m-%d",measurement.date) >= date).all()
-
-    session.close()
-
-    start_date = list(np.ravel(results))
-    return jsonify(start_date)
-
-# def trip1(start):
-
-#  # go back one year from start date and go to end of data for Min/Avg/Max temp   
-#     start_date= dt.datetime.strptime(start, '%Y-%m-%d')
-#     last_year = dt.timedelta(days=365)
-#     start = start_date-last_year
-#     end =  dt.date(2017, 8, 23)
-#     trip_data = session.query(func.min(Measurements.tobs), func.avg(Measurements.tobs), func.max(Measurements.tobs)).\
-#         filter(Measurements.date >= start).filter(Measurements.date <= end).all()
-#     trip = list(np.ravel(trip_data))
-#     return jsonify(trip)
-
 # * When given the start and the end date, calculate the `TMIN`, `TAVG`, and `TMAX` for dates from the start date through the end date (inclusive).
-@app.route("/api/v1.0/range<start>/<end>")
-def range(date):
-    date= dt.datetime.strptime(date, '%Y-%m-%d')
-    end =  dt.date(2017, 8, 23)
-    
+@app.route("/api/v1.0/<start>")
+def temp_start(start):
     session = Session(engine)
 
-    results = session.query(func.min(measurement.tobs),func.max(measurement.tobs),func.avg(measurement.tobs)).filter(func.strftime("%Y-%m-%d",measurement.date) >= date).filter(func.strftime("%Y-%m-%d",measurement.date) <= end).all()
+    # if end:
+    #     end_date = dt.datetime.strptime(end, "%Y%m%d")
+    # else:
+    #     end = dt.date(2017, 8, 23)
+
+    start= dt.datetime.strptime(start, '%Y%m%d')
+
+    results = session.query(func.min(measurement.tobs),func.max(measurement.tobs),func.avg(measurement.tobs)).\
+        filter(func.strftime("%Y-%m-%d",measurement.date) >= start).group_by(measurement.date).all()
 
     session.close()
 
-    start_date = list(np.ravel(results))
-    return jsonify(start_date)
+    results_list = []
+    for each in results:
+        results_list.append({"min":each[0], "max":each[1], "avg":each[2]})
+   
+    return jsonify(results_list)
+
+@app.route("/api/v1.0/<start>/<end>")
+def temp_range(start, end):
+    session = Session(engine)
+
+    if end:
+        end_date = dt.datetime.strptime(end, "%Y%m%d")
+    else:
+        end = dt.date(2017, 8, 23)
+
+    start= dt.datetime.strptime(start, '%Y%m%d')
+
+    results = session.query(func.min(measurement.tobs),func.max(measurement.tobs),func.avg(measurement.tobs)).\
+        filter(func.strftime("%Y-%m-%d",measurement.date) >= start).filter(func.strftime("%Y-%m-%d",measurement.date) < end).\
+            group_by(measurement.date).all()
+
+    session.close()
+
+    results_list = []
+    for each in results:
+        results_list.append({"min":each[0], "max":each[1], "avg":each[2]})
+   
+    return jsonify(results_list)
 
 
 
